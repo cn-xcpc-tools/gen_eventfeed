@@ -1,4 +1,4 @@
-#!/bin/python3
+#!/usr/bin/env python3
 
 import re
 import time
@@ -98,16 +98,36 @@ def gen_contest(info):
     }
     return { "contest": contest, "state": state }
 
-# # judgement-types
+# judgement-types
+def gen_judgement_type():
+    dic = {
+        "AC":  {"id": "AC",  "name": "correct",            "penalty": False, "solved": True},
+        "CE":  {"id": "CE",  "name": "compiler error",     "penalty": False, "solved": False},
+        "MLE": {"id": "MLE", "name": "memory limit",       "penalty": True,  "solved": False},
+        "NO":  {"id": "NO",  "name": "no output",          "penalty": True,  "solved": False},
+        "OLE": {"id": "OLE", "name": "output limit",       "penalty": True,  "solved": False},
+        "PE":  {"id": "PE",  "name": "presentation error", "penalty": True,  "solved": False},
+        "RTE": {"id": "RTE", "name": "run error",          "penalty": True,  "solved": False},
+        "TLE": {"id": "TLE", "name": "timelimit",          "penalty": True,  "solved": False},
+        "WA":  {"id": "WA",  "name": "wrong answer",       "penalty": True,  "solved": False}
+    }
+    return dic
 # # language
-# def gen_language(cid):
+def gen_language():
+    dic = {
+        "c":  {"id": "c", "name": "C", "extensions": ["c"], "filter_compiler_files": True, "allow_judge": True, "time_factor": 1.0, "require_entry_point": False, "entry_point_description": None},
+        "cpp":  {"id": "cpp", "name": "C++", "extensions": ["cpp", "cc", "cxx", "c++"], "filter_compiler_files": True, "allow_judge": True, "time_factor": 1.0, "require_entry_point": False, "entry_point_description": None},
+        "java": {"id": "java", "name": "Java", "extensions": ["java"], "filter_compiler_files": True, "allow_judge": True, "time_factor": 2.0, "require_entry_point": False, "entry_point_description": "Main class"},
+        "python3":  {"id": "python3", "name": "Python 3", "extensions": ["py3", "py"], "filter_compiler_files": True, "allow_judge": True, "time_factor": 1.0, "require_entry_point": False, "entry_point_description": "Main file"}
+    }
+    return dic
 
 # testcase
 def testcase_count(probid):
     cursor = db.cursor()
-    cursor.execute("SELECT COUNT(*) FROM testcase WHERE probid = %d" % probid)
+    cursor.execute("SELECT COUNT(*) AS c FROM testcase WHERE probid = %d" % probid)
     row = cursor.fetchone()
-    count = row["COUNT(*)"]
+    count = row["c"]
     cursor.close()
     return count
 
@@ -142,7 +162,7 @@ def gen_group():
     categorys = dbGetAll("team_category", True, 'categoryid')
     for i in categorys:
         item = {
-            "hidden": bool(categorys[i]["visible"]),
+            "hidden": not bool(categorys[i]["visible"]),
             "icpc_id": categorys[i]["categoryid"], # Same as id
             "id": i,
             "name": categorys[i]["name"],
@@ -179,7 +199,7 @@ def gen_team(affiliations):
         item = {
             "externalid": teams[i]["externalid"],
             "group_ids": [ teams[i]["categoryid"] ],
-            "affiliation": None if not affil else affil["name"],
+            "affiliation": None if not affil else affil["formal_name"],
             "id": i,
             "icpc_id": teams[i]["teamid"], # Same as id
             "name": teams[i]["name"],
@@ -211,8 +231,12 @@ def gen_submission():
         dic[i] = item
     return dic
 
+# # judging_run
+# def gen_runs(cid):
+# # # judging_run_output
+
 # judging / judgements
-def gen_judging():
+def gen_judging(judgement):
     dic = {}
     judgings = dbGetAll("judging", id='judgingid')
     for i in judgings:
@@ -221,20 +245,18 @@ def gen_judging():
             "max_run_time": float(0),
             "start_time": stamp2str(judgings[i]["starttime"]),
             "start_contest_time": timedura(judgings[i]["starttime"], st),
-            "end_time": timedura(judgings[i]["endtime"], st),
+            "end_time": stamp2str(judgings[i]["endtime"]),
             "end_contest_time": timedura(judgings[i]["endtime"], st),
             "id": i,
             "submission_id": judgings[i]["submitid"],
-            "valid": judgings[i]["valid"],
+            "valid": bool(judgings[i]["valid"]),
             "judgehost": judgings[i]["judgehost"],
-            "judgement_type_id": judgings[i]["result"]
+            "judgement_type_id": judgement[judgings[i]["result"]]
         }
         dic[i] = item
     return dic
 
-# # judging_run
-# def gen_runs(cid):
-# # # judging_run_output
+# # clarifications
 
 static_event_id = 1
 def genEvent(typ, data, id=0, op="create", time=None):
@@ -255,23 +277,29 @@ def main():
     contest = select_contest()
     if contest == -1: return
     info = gen_contest(contest)
+    judgement_types = gen_judgement_type()
     problem = gen_problem()
     groups = gen_group()
     organizations = gen_organizations()
     teams = gen_team(organizations)
     submissions = gen_submission()
-    judgements = gen_judging()
+    judgement = {}
+    for i in judgement_types: judgement[judgement_types[i]["name"].replace(' ', '-')] = i
+    judgements = gen_judging(judgement)
     db.close()
 
     with open("event-feed.json", 'w') as f:
         f.writelines(genEvent("contests", info["contest"]))
-        for i in problem:       f.write(genEvent("problems",        problem[i]))
-        for i in groups:        f.write(genEvent("groups",         groups[i]))
-        for i in organizations: f.write(genEvent("organizations",  organizations[i]))
-        for i in teams:         f.write(genEvent("teams",          teams[i]))
-        for i in submissions:   f.write(genEvent("submissions",    submissions[i]))
-        for i in judgements:    f.write(genEvent("judgements",     judgements[i]))
-        f.writelines(genEvent("state", info["state"]))
+        for i in judgement_types:   f.write(genEvent("judgement-types",judgement_types[i]))
+        for i in problem:           f.write(genEvent("problems",       problem[i]))
+        for i in groups:            f.write(genEvent("groups",         groups[i]))
+        for i in organizations:     f.write(genEvent("organizations",  organizations[i]))
+        for i in teams:             f.write(genEvent("teams",          teams[i]))
+        # f.writelines(genEvent("state", info["state"], op="create"))
+        for i in submissions:       f.write(genEvent("submissions",    submissions[i]))
+        for i in judgements:        f.write(genEvent("judgements",     judgements[i], op="create"))
+        # for i in judgements:        f.write(genEvent("judgements",     judgements[i], op="update"))
+        f.writelines(genEvent("state", info["state"], op="update"))
 
     with open("event.json", 'w') as f:
         data = {
