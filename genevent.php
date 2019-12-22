@@ -8,6 +8,7 @@ function dbConn($db_host = 'localhost', $db_name = 'domjudge', $db_user = 'domju
     if (!$con) {
         die('Could not connect: ' . mysqli_error());
     }
+    $con->set_charset("utf8");
     return $con;
 }
 
@@ -325,7 +326,7 @@ function main() {
 
     echo genEvent("contests", $info["contest"]);
     foreach($judgement_types as $i=>$v) echo genEvent("judgement-types", $v);
-    foreach($problem         as $i=>$v) echo genEvent("problem",         $v);
+    foreach($problem         as $i=>$v) echo genEvent("problems",        $v);
     foreach($groups          as $i=>$v) echo genEvent("groups",          $v);
     foreach($organizations   as $i=>$v) echo genEvent("organizations",   $v);
     foreach($teams           as $i=>$v) echo genEvent("teams",           $v);
