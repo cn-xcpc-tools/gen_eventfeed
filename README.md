@@ -6,11 +6,19 @@ But scoreboard stile avaliable, so I try to recalculate one from other sheets.
 
 ## files
 
-* genevent.py
+* genevent.py / genevent.php
 
   connect to Domjudge database and try to recalculate `eventfeed.json`.
 
   requirement: pypyodbc + mysql odbc driver (rewrite with other lib soon), webcolors (option)
+
+* genevent.php
+
+  php port of genevent.py, for easy use
+
+  ``` bash
+    sudo php genevent.php > event-feed.json
+  ```
 
 * jsonl2json.py
 
@@ -19,4 +27,3 @@ But scoreboard stile avaliable, so I try to recalculate one from other sheets.
 * xml2json.py
 
   load old `eventfeed.xml` (from domjudge < 7.1 / PC^2) and gen `feed.json` for [sortable](https://github.com/906030538/sortable)
-
